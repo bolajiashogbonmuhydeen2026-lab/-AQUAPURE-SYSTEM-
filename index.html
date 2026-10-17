@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaPure V3.0 Executive Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --card-border: #1f2937;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 16px;
+            border-radius: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .brand-title h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .version-badge {
+            font-size: 10px;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .metric-value span {
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--card-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 61%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .badge-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-standby {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .subtext {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .control-panel {
+            background: linear-gradient(145deg, #111827, #1f2937);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-halt {
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-engage {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .alert-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid var(--accent-blue);
+            padding: 10px;
+            border-radius: 0 8px 8px 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .institution-row, .founder-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .row-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .row-details h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .row-details p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="brand">
+            <div class="logo-icon">💧</div>
+            <div class="brand-title">
+                <h1>AQUAPURE SYSTEM</h1>
+                <span class="version-badge">V3.0 EXECUTIVE</span>
+            </div>
+        </div>
+        <div class="system-status">
+            <div class="status-dot"></div>
+            SYSTEM ONLINE
+        </div>
+    </header>
+
+    <div class="card">
+        <div class="card-header">
+            <span>Decantation Depth</span>
+            <span>🌊</span>
+        </div>
+        <div class="metric-value" id="depthValue">19.5 <span>cm</span></div>
+        <div class="progress-container">
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="depthProgressBar" style="width: 65%;"></div>
+            </div>
+            <div class="progress-info">
+                <span>Capacity: 30 cm</span>
+                <span id="depthPercentage">65% Full</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span>Pump Relay Status</span>
+            <span>⚡</span>
+        </div>
+        <div class="badge-row">
+            <div id="relayStatusBadge" class="status-badge status-active">ACTIVE</div>
+            <div class="subtext">Flow Rate: <strong id="flowRateValue">2.4</strong> L/min</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span>Dry-Run Safeguard</span>
+            <span>🛡️</span>
+        </div>
+        <div class="badge-row">
+            <div class="status-badge status-active" style="font-size: 14px; color: var(--accent-green); background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2);">NORMAL</div>
+            <div class="subtext">✓ Sensors Nominal</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span>Microcontroller Power</span>
+            <span>🔌</span>
+        </div>
+        <div class="metric-value">5.0 <span>V DC</span></div>
+        <div class="subtext">🤖 Arduino Logic Running</div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span>Real-Time Water Level Telemetry</span>
+            <span>POLLING: 1000ms</span>
+        </div>
+        <div class="subtext" style="font-size: 11px;">Ultrasonic Echo Distance Readings (HC-SR04)</div>
+        <div style="position: relative; height: 160px; width: 100%;">
+            <canvas id="telemetryChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card control-panel">
+        <div class="card-header" style="color: var(--accent-cyan);">
+            <span>Interactive Control Center</span>
+            <span>🎛️</span>
+        </div>
+        <div class="subtext">Override relays or simulate live water level changes.</div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">RELAY OVERRIDE</span>
+            <button id="toggleRelayBtn" class="btn-action btn-halt" onclick="toggleRelay()">Halt Pump Relay</button>
+        </div>
+
+        <div class="slider-group">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">SIMULATE TANK LEVEL</span>
+                <span id="sliderValueDisplay" style="font-size: 12px; font-weight: bold; color: var(--accent-cyan);">19.8 cm</span>
+            </div>
+            <input type="range" id="tankSlider" min="0" max="30" step="0.1" value="19.8" oninput="updateSimulation(this.value)">
+            <div class="slider-labels">
+                <span>0 cm (Low)</span>
+                <span>15 cm (Target)</span>
+                <span>30 cm (Full)</span>
+            </div>
+        </div>
+
+        <div class="alert-box" id="alertBoxText">
+            <span>ℹ️</span> System operating normally. Automated decantation sequence active.
+        </div>
+    </div>
+
+    <div class="footer-card">
+        <div class="institution-row">
+            <div class="row-icon">🏛️</div>
+            <div class="row-details">
+                <h4>Iju Senior Grammar School</h4>
+                <p>Lagos State Cleaner Energy Schools Innovation Challenge (LCESIC Stage 3)</p>
+            </div>
+        </div>
+        <div class="founder-row" style="margin-top: 8px;">
+            <div class="row-icon">👨‍💻</div>
+            <div class="row-details">
+                <h4>Bolaji Ashogbon Muhydeen</h4>
+                <p>Student of Iju Senior Grammar School & Lead Hardware Engineer</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        © 2026 AquaPure System. All rights reserved.<br>Engineered for LCESIC Final Stage • Powered by Netlify / Render API
+    </div>
+  </div>
+  <script>
+    // Connect to WebSocket Backend (Update URL to your deployed Render service URL when live)
+    const socket = io(); 
+
+    const ctx = document.getElementById('telemetryChart').getContext('2d');
+    const telemetryChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['23:05:06', '23:05:08', '23:05:11', '23:05:13', '23:05:16', '23:05:18', '23:05:21'],
+            datasets: [{
+                label: 'Distance (cm)',
+                data: [19.0, 19.2, 19.1, 19.5, 19.8, 19.2, 19.8],
+                borderColor: '#06b6d4',
+                backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#3b82f6'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(31, 41, 55, 0.5)' },
+                    ticks: { color: '#9ca3af', font: { size: 10 } }
+                },
+                y: {
+                    min: 0,
+                    max: 30,
+                    grid: { color: 'rgba(31, 41, 55, 0.5)' },
+                    ticks: { color: '#9ca3af', font: { size: 10 } }
+                }
+            }
+        }
+    });
+
+    let isRelayActive = true;
+
+    function toggleRelay() {
+        isRelayActive = !isRelayActive;
+        const command = isRelayActive ? 'ENGAGE' : 'HALT';
+        
+        // Emit override command to backend server & ESP32
+        socket.emit('controlOverride', { action: command });
+        updateUIState(isRelayActive);
+    }
+
+    function updateUIState(active) {
+        const btn = document.getElementById('toggleRelayBtn');
+        const badge = document.getElementById('relayStatusBadge');
+        const alertBox = document.getElementById('alertBoxText');
+        const flowRate = document.getElementById('flowRateValue');
+
+        if (active) {
+            btn.className = "btn-action btn-halt";
+            btn.innerText = "Halt Pump Relay";
+            badge.className = "status-badge status-active";
+            badge.innerText = "ACTIVE";
+            flowRate.innerText = "2.4";
+            alertBox.innerHTML = "<span>ℹ️</span> Pump relay manually engaged. Active filtration ongoing.";
+        } else {
+            btn.className = "btn-action btn-engage";
+            btn.innerText = "Engage Pump Relay";
+            badge.className = "status-badge status-standby";
+            badge.innerText = "STANDBY";
+            flowRate.innerText = "0.0";
+            alertBox.innerHTML = "<span>⚠️</span> Pump relay placed on standby. Flow halted.";
+        }
+    }
+
+    function updateSimulation(val) {
+        document.getElementById('sliderValueDisplay').innerText = val + " cm";
+        document.getElementById('depthValue').innerHTML = val + " <span>cm</span>";
+        
+        const percentage = Math.round((val / 30) * 100);
+        document.getElementById('depthProgressBar').style.width = percentage + "%";
+        document.getElementById('depthPercentage').innerText = percentage + "% Full";
+
+        const data = telemetryChart.data.datasets[0].data;
+        data[data.length - 1] = parseFloat(val);
+        telemetryChart.update('none');
+    }
+
+    // Listen for live backend telemetry pushes from ESP32
+    socket.on('telemetryUpdate', (state) => {
+        document.getElementById('depthValue').innerHTML = state.depth + " <span>cm</span>";
+        document.getElementById('depthProgressBar').style.width = state.percentage + "%";
+        document.getElementById('depthPercentage').innerText = state.percentage + "% Full";
+        document.getElementById('flowRateValue').innerText = state.flowRate;
+        
+        isRelayActive = (state.relayStatus === "ACTIVE");
+        updateUIState(isRelayActive);
+
+        // Update chart with live telemetry point
+        const data = telemetryChart.data.datasets[0].data;
+        const labels = telemetryChart.data.labels;
+        
+        const timeNow = new Date().toLocaleTimeString();
+        data.push(state.depth);
+        labels.push(timeNow);
+        
+        if (data.length > 8) {
+            data.shift();
+            labels.shift();
+        }
+        telemetryChart.update();
+    });
+</script>
+
+</body>
+</html>
